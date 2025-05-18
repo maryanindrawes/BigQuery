@@ -1,0 +1,44 @@
+-- Retrieve the top 3 daily search terms in the UK over the past month and aggregate them weekly
+WITH filtered_data AS (
+  SELECT
+    refresh_date AS Day,
+    term AS Top_Term,
+    rank AS Rank,
+    country_name AS Country,
+    EXTRACT(WEEK FROM refresh_date) AS Week
+  FROM
+    `bigquery-public-data.google_trends.international_top_terms`
+  WHERE
+    refresh_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH)
+    AND country_code = 'GB'
+    AND rank <= 3
+)
+
+SELECT
+  Week,
+  Top_Term,
+  COUNT(*) AS Appearances,
+  MIN(Rank) AS Best_Rank
+FROM
+  filtered_data
+GROUP BY
+  Week,
+  Top_Term
+ORDER BY
+  Week DESC,
+  Best_Rank ASC;
+
+SELECT
+  refresh_date AS Day,
+  term AS Top_Term,
+  rank,
+  cats.category  -- Category added from the joined table
+FROM `bigquery-public-data.google_trends.top_terms` AS terms
+LEFT JOIN `bigquery-public-data.google_trends.term_categories` AS cats
+  ON terms.term = cats.term
+WHERE
+  rank = 1  -- Top term each day
+  AND refresh_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 2 WEEK)  -- Last 2 weeks
+GROUP BY Day, Top_Term, rank, cats.category
+ORDER BY Day DESC
+
